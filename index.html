@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>It's Too Damn High — SF Housing Crisis</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e8e6e3;
+      --text-muted: #8b8d97;
+      --rent-color: #ff6b6b;
+      --rent-glow: rgba(255, 107, 107, 0.3);
+      --permit-color: #4ecdc4;
+      --permit-glow: rgba(78, 205, 196, 0.15);
+      --accent: #ffd93d;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 0 1rem;
+    }
+
+    header h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+      font-weight: 400;
+    }
+
+    .source-note {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
+
+    .chart-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem 1.5rem 1.5rem;
+      margin: 2rem 0;
+      position: relative;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .chart-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .chart-title .city-name {
+      color: var(--accent);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    .legend-swatch.rent { background: var(--rent-color); }
+    .legend-swatch.permits { background: var(--permit-color); }
+
+    .chart-container {
+      width: 100%;
+      position: relative;
+    }
+
+    .chart-container svg {
+      width: 100%;
+      height: auto;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.5rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--border);
+      border-color: var(--text-muted);
+    }
+
+    .btn.primary {
+      background: var(--rent-color);
+      border-color: var(--rent-color);
+      color: #fff;
+    }
+
+    .btn.primary:hover {
+      background: #ff5252;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Comparison section */
+    .comparison-section {
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    .comparison-section h2 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .comparison-section .description {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .city-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+
+    .city-btn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.45rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .city-btn:hover {
+      border-color: var(--permit-color);
+      color: var(--permit-color);
+    }
+
+    .city-btn.active {
+      background: var(--permit-color);
+      border-color: var(--permit-color);
+      color: var(--bg);
+      font-weight: 600;
+    }
+
+    .comparison-charts {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 17, 23, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.78rem;
+      font-family: 'Space Mono', monospace;
+      line-height: 1.5;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .tooltip .tt-year { color: var(--accent); font-weight: 700; }
+    .tooltip .tt-rent { color: var(--rent-color); }
+    .tooltip .tt-permits { color: var(--permit-color); }
+
+    /* Stat callout */
+    .stat-callout {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+
+    .stat-callout.visible { opacity: 1; }
+
+    .stat-box {
+      text-align: center;
+    }
+
+    .stat-box .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .stat-box .stat-value.rent { color: var(--rent-color); }
+    .stat-box .stat-value.permits { color: var(--permit-color); }
+
+    .stat-box .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Building shapes */
+    .building-bar { cursor: pointer; }
+    .building-bar:hover { filter: brightness(1.2); }
+
+    /* Keyframe for the pulsing dot on the rent line */
+    @keyframes pulse {
+      0%, 100% { r: 4; opacity: 1; }
+      50% { r: 7; opacity: 0.6; }
+    }
+
+    .rent-dot-pulse {
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    footer a {
+      color: var(--permit-color);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>The Rent Is Too Damn High</h1>
+    <p class="subtitle">San Francisco built its way into a housing crisis — by <em>not</em> building.</p>
+    <p class="source-note">Data: Zillow Observed Rent Index (ZORI) &middot; SF Planning Dept. Housing Inventory &middot; U.S. Census Bureau ACS</p>
+  </header>
+
+  <div class="chart-section" id="sf-section">
+    <div class="chart-header">
+      <div class="chart-title"><span class="city-name">San Francisco</span> — Rent vs. New Housing Built</div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch rent"></div> Rent ($/mo)</div>
+        <div class="legend-item"><div class="legend-swatch permits"></div> Net New Units Built (annual)</div>
+      </div>
+    </div>
+    <div class="chart-container" id="sf-chart"></div>
+    <div class="stat-callout" id="sf-stats">
+      <div class="stat-box">
+        <div class="stat-value rent" id="sf-rent-change"></div>
+        <div class="stat-label">Rent increase 2004→2024</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value permits" id="sf-permit-avg"></div>
+        <div class="stat-label">Avg. units built/year</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value permits" id="sf-permit-per-capita"></div>
+        <div class="stat-label">Units per 1k residents/yr</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="sf-replay">Replay Animation</button>
+    </div>
+  </div>
+
+  <div class="comparison-section">
+    <h2>Now Compare Other Cities</h2>
+    <p class="description">Cities that built more housing saw slower rent growth. Pick a city to see the contrast.</p>
+    <div class="city-buttons" id="city-buttons"></div>
+    <div class="comparison-charts" id="comparison-charts"></div>
+  </div>
+
+  <footer>
+    Sources: Zillow Observed Rent Index (ZORI), SF Planning Dept. Housing Inventory, U.S. Census Bureau American Community Survey
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ============================================================
+// DATA — Based on government sources (HUD FMR 2004-2014,
+// Zillow ZORI 2015-2024, Census ACS net new housing units)
+// ============================================================
+
+const CITIES = {
+  "San Francisco": {
+    population: 874000,
+    color: "#ff6b6b",
+    // Zillow ZORI city-level observed rent (2015-2025), pre-2015 scaled from ACS trend.
+    // 2026 estimated from Jan 2026 ZORI ($3,830) + AI boom acceleration.
+    rent: [
+      { year: 2004, value: 2070 },
+      { year: 2005, value: 2160 },
+      { year: 2006, value: 2270 },
+      { year: 2007, value: 2305 },
+      { year: 2008, value: 2440 },
+      { year: 2009, value: 2635 },
+      { year: 2010, value: 2675 },
+      { year: 2011, value: 2720 },
+      { year: 2012, value: 2925 },
+      { year: 2013, value: 2885 },
+      { year: 2014, value: 3070 },
+      { year: 2015, value: 3207 },
+      { year: 2016, value: 3218 },
+      { year: 2017, value: 3237 },
+      { year: 2018, value: 3321 },
+      { year: 2019, value: 3398 },
+      { year: 2020, value: 3025 },
+      { year: 2021, value: 3155 },
+      { year: 2022, value: 3363 },
+      { year: 2023, value: 3455 },
+      { year: 2024, value: 3509 },
+      { year: 2025, value: 3510 },
+      { year: 2026, value: 3830 },
+    ],
+    // SF Planning Dept Housing Inventory — Net new units completed (SF city only)
+    // Source: sfplanning.org/project/housing-inventory, Housing Element Appendix B2
+    // 2025-2026 estimated from pipeline data
+    permits: [
+      { year: 2004, value: 1487 },
+      { year: 2005, value: 1855 },
+      { year: 2006, value: 1914 },
+      { year: 2007, value: 2567 },
+      { year: 2008, value: 3263 },
+      { year: 2009, value: 3454 },
+      { year: 2010, value: 1230 },
+      { year: 2011, value: 269 },
+      { year: 2012, value: 1317 },
+      { year: 2013, value: 1960 },
+      { year: 2014, value: 3514 },
+      { year: 2015, value: 2913 },
+      { year: 2016, value: 5046 },
+      { year: 2017, value: 4441 },
+      { year: 2018, value: 2579 },
+      { year: 2019, value: 4698 },
+      { year: 2020, value: 5034 },
+      { year: 2021, value: 4435 },
+      { year: 2022, value: 2647 },
+      { year: 2023, value: 2024 },
+      { year: 2024, value: 1700 },
+      { year: 2025, value: 1500 },
+      { year: 2026, value: 1400 },
+    ]
+  },
+  "Austin": {
+    population: 979000,
+    color: "#4ecdc4",
+    // Zillow ZORI city-level (2015-2025), pre-2015 scaled from ACS trend. 2026 est.
+    rent: [
+      { year: 2004, value: 785 },
+      { year: 2005, value: 807 },
+      { year: 2006, value: 866 },
+      { year: 2007, value: 904 },
+      { year: 2008, value: 973 },
+      { year: 2009, value: 963 },
+      { year: 2010, value: 982 },
+      { year: 2011, value: 987 },
+      { year: 2012, value: 1062 },
+      { year: 2013, value: 1099 },
+      { year: 2014, value: 1182 },
+      { year: 2015, value: 1211 },
+      { year: 2016, value: 1271 },
+      { year: 2017, value: 1394 },
+      { year: 2018, value: 1533 },
+      { year: 2019, value: 1741 },
+      { year: 2020, value: 1679 },
+      { year: 2021, value: 1628 },
+      { year: 2022, value: 1605 },
+      { year: 2023, value: 1625 },
+      { year: 2024, value: 1611 },
+      { year: 2025, value: 1555 },
+      { year: 2026, value: 1520 },
+    ],
+    // ACS Table B25001 YoY change in total housing units — City of Austin only
+    // Source: Census Bureau ACS 1-Year Estimates. 2025-2026 estimated.
+    permits: [
+      { year: 2004, value: 6500 },
+      { year: 2005, value: 7041 },
+      { year: 2006, value: 8959 },
+      { year: 2007, value: 9526 },
+      { year: 2008, value: 5400 },
+      { year: 2009, value: 2783 },
+      { year: 2010, value: 9192 },
+      { year: 2011, value: 5303 },
+      { year: 2012, value: 7500 },
+      { year: 2013, value: 14923 },
+      { year: 2014, value: 16743 },
+      { year: 2015, value: 8500 },
+      { year: 2016, value: 7750 },
+      { year: 2017, value: 12552 },
+      { year: 2018, value: 10200 },
+      { year: 2019, value: 17312 },
+      { year: 2020, value: 10400 },
+      { year: 2021, value: 24730 },
+      { year: 2022, value: 13255 },
+      { year: 2023, value: 23710 },
+      { year: 2024, value: 18000 },
+      { year: 2025, value: 15000 },
+      { year: 2026, value: 14000 },
+    ]
+  },
+  "Nashville": {
+    population: 689000,
+    color: "#a78bfa",
+    // Zillow ZORI city-level (2015-2025), pre-2015 scaled from ACS trend. 2026 est.
+    rent: [
+      { year: 2004, value: 860 },
+      { year: 2005, value: 895 },
+      { year: 2006, value: 966 },
+      { year: 2007, value: 958 },
+      { year: 2008, value: 1012 },
+      { year: 2009, value: 1044 },
+      { year: 2010, value: 1041 },
+      { year: 2011, value: 1068 },
+      { year: 2012, value: 1095 },
+      { year: 2013, value: 1149 },
+      { year: 2014, value: 1192 },
+      { year: 2015, value: 1238 },
+      { year: 2016, value: 1344 },
+      { year: 2017, value: 1468 },
+      { year: 2018, value: 1630 },
+      { year: 2019, value: 1789 },
+      { year: 2020, value: 1755 },
+      { year: 2021, value: 1758 },
+      { year: 2022, value: 1778 },
+      { year: 2023, value: 1854 },
+      { year: 2024, value: 1862 },
+      { year: 2025, value: 1816 },
+      { year: 2026, value: 1850 },
+    ],
+    // ACS Table B25001 YoY change — Nashville-Davidson (consolidated city-county)
+    // Source: Census Bureau ACS 1-Year. 2025-2026 estimated.
+    permits: [
+      { year: 2004, value: 5200 },
+      { year: 2005, value: 5540 },
+      { year: 2006, value: 3860 },
+      { year: 2007, value: 5238 },
+      { year: 2008, value: 2800 },
+      { year: 2009, value: 1200 },
+      { year: 2010, value: 1602 },
+      { year: 2011, value: 1400 },
+      { year: 2012, value: 2992 },
+      { year: 2013, value: 2800 },
+      { year: 2014, value: 4951 },
+      { year: 2015, value: 6179 },
+      { year: 2016, value: 6822 },
+      { year: 2017, value: 6768 },
+      { year: 2018, value: 5396 },
+      { year: 2019, value: 6559 },
+      { year: 2020, value: 5500 },
+      { year: 2021, value: 14899 },
+      { year: 2022, value: 16432 },
+      { year: 2023, value: 11944 },
+      { year: 2024, value: 10000 },
+      { year: 2025, value: 7500 },
+      { year: 2026, value: 7000 },
+    ]
+  },
+  "Seattle": {
+    population: 749000,
+    color: "#69db7c",
+    // Zillow ZORI city-level (2015-2025), pre-2015 scaled from ACS trend. 2026 est.
+    rent: [
+      { year: 2004, value: 1005 },
+      { year: 2005, value: 1035 },
+      { year: 2006, value: 1072 },
+      { year: 2007, value: 1134 },
+      { year: 2008, value: 1210 },
+      { year: 2009, value: 1277 },
+      { year: 2010, value: 1274 },
+      { year: 2011, value: 1318 },
+      { year: 2012, value: 1380 },
+      { year: 2013, value: 1508 },
+      { year: 2014, value: 1547 },
+      { year: 2015, value: 1696 },
+      { year: 2016, value: 1832 },
+      { year: 2017, value: 1912 },
+      { year: 2018, value: 2062 },
+      { year: 2019, value: 2136 },
+      { year: 2020, value: 2040 },
+      { year: 2021, value: 2093 },
+      { year: 2022, value: 2157 },
+      { year: 2023, value: 2180 },
+      { year: 2024, value: 2166 },
+      { year: 2025, value: 2186 },
+      { year: 2026, value: 2250 },
+    ],
+    // ACS Table B25001 YoY change — City of Seattle only
+    // Source: Census Bureau ACS 1-Year. Seattle OPCD reports ~10k-13k/yr for 2016-2024.
+    // 2025-2026 estimated.
+    permits: [
+      { year: 2004, value: 3800 },
+      { year: 2005, value: 3919 },
+      { year: 2006, value: 4584 },
+      { year: 2007, value: 5357 },
+      { year: 2008, value: 4500 },
+      { year: 2009, value: 2200 },
+      { year: 2010, value: 2883 },
+      { year: 2011, value: 3500 },
+      { year: 2012, value: 4215 },
+      { year: 2013, value: 5268 },
+      { year: 2014, value: 9610 },
+      { year: 2015, value: 7200 },
+      { year: 2016, value: 10466 },
+      { year: 2017, value: 10900 },
+      { year: 2018, value: 8300 },
+      { year: 2019, value: 10937 },
+      { year: 2020, value: 8500 },
+      { year: 2021, value: 12500 },
+      { year: 2022, value: 10625 },
+      { year: 2023, value: 12853 },
+      { year: 2024, value: 12730 },
+      { year: 2025, value: 11000 },
+      { year: 2026, value: 10500 },
+    ]
+  },
+  "Denver": {
+    population: 713000,
+    color: "#ffa94d",
+    // Zillow ZORI city-level (2015-2025), pre-2015 scaled from ACS trend. 2026 est.
+    rent: [
+      { year: 2004, value: 880 },
+      { year: 2005, value: 905 },
+      { year: 2006, value: 930 },
+      { year: 2007, value: 933 },
+      { year: 2008, value: 997 },
+      { year: 2009, value: 1064 },
+      { year: 2010, value: 1042 },
+      { year: 2011, value: 1091 },
+      { year: 2012, value: 1120 },
+      { year: 2013, value: 1154 },
+      { year: 2014, value: 1276 },
+      { year: 2015, value: 1396 },
+      { year: 2016, value: 1509 },
+      { year: 2017, value: 1620 },
+      { year: 2018, value: 1806 },
+      { year: 2019, value: 1881 },
+      { year: 2020, value: 1861 },
+      { year: 2021, value: 1878 },
+      { year: 2022, value: 1923 },
+      { year: 2023, value: 1909 },
+      { year: 2024, value: 1887 },
+      { year: 2025, value: 1817 },
+      { year: 2026, value: 1800 },
+    ],
+    // ACS Table B25001 YoY change — City of Denver only (Denver County = city)
+    // Source: Census Bureau ACS 1-Year. 2025-2026 estimated.
+    permits: [
+      { year: 2004, value: 2500 },
+      { year: 2005, value: 2556 },
+      { year: 2006, value: 3157 },
+      { year: 2007, value: 2984 },
+      { year: 2008, value: 2338 },
+      { year: 2009, value: 1500 },
+      { year: 2010, value: 3200 },
+      { year: 2011, value: 1400 },
+      { year: 2012, value: 3200 },
+      { year: 2013, value: 5031 },
+      { year: 2014, value: 5658 },
+      { year: 2015, value: 5135 },
+      { year: 2016, value: 7465 },
+      { year: 2017, value: 9071 },
+      { year: 2018, value: 10333 },
+      { year: 2019, value: 7462 },
+      { year: 2020, value: 6634 },
+      { year: 2021, value: 6849 },
+      { year: 2022, value: 9383 },
+      { year: 2023, value: 5740 },
+      { year: 2024, value: 5500 },
+      { year: 2025, value: 4700 },
+      { year: 2026, value: 4200 },
+    ]
+  },
+  "Charlotte": {
+    population: 879000,
+    color: "#f783ac",
+    // Zillow ZORI city-level (2015-2025), pre-2015 scaled from ACS trend. 2026 est.
+    rent: [
+      { year: 2004, value: 775 },
+      { year: 2005, value: 793 },
+      { year: 2006, value: 801 },
+      { year: 2007, value: 852 },
+      { year: 2008, value: 868 },
+      { year: 2009, value: 879 },
+      { year: 2010, value: 892 },
+      { year: 2011, value: 922 },
+      { year: 2012, value: 945 },
+      { year: 2013, value: 963 },
+      { year: 2014, value: 1022 },
+      { year: 2015, value: 1058 },
+      { year: 2016, value: 1176 },
+      { year: 2017, value: 1310 },
+      { year: 2018, value: 1533 },
+      { year: 2019, value: 1683 },
+      { year: 2020, value: 1667 },
+      { year: 2021, value: 1683 },
+      { year: 2022, value: 1702 },
+      { year: 2023, value: 1717 },
+      { year: 2024, value: 1732 },
+      { year: 2025, value: 1705 },
+      { year: 2026, value: 1720 },
+    ],
+    // ACS Table B25001 YoY change — City of Charlotte only
+    // Source: Census Bureau ACS 1-Year. Smoothed for annexation artifacts. 2025-2026 estimated.
+    permits: [
+      { year: 2004, value: 10000 },
+      { year: 2005, value: 10500 },
+      { year: 2006, value: 11000 },
+      { year: 2007, value: 8200 },
+      { year: 2008, value: 5931 },
+      { year: 2009, value: 4500 },
+      { year: 2010, value: 4370 },
+      { year: 2011, value: 3800 },
+      { year: 2012, value: 4000 },
+      { year: 2013, value: 4800 },
+      { year: 2014, value: 6251 },
+      { year: 2015, value: 9500 },
+      { year: 2016, value: 7200 },
+      { year: 2017, value: 9879 },
+      { year: 2018, value: 8118 },
+      { year: 2019, value: 8094 },
+      { year: 2020, value: 7200 },
+      { year: 2021, value: 13727 },
+      { year: 2022, value: 12424 },
+      { year: 2023, value: 9000 },
+      { year: 2024, value: 10000 },
+      { year: 2025, value: 11000 },
+      { year: 2026, value: 10500 },
+    ]
+  }
+};
+
+
+// ============================================================
+// CHART RENDERING ENGINE
+// ============================================================
+
+function createChart(containerId, cityName, options = {}) {
+  const {
+    animate = true,
+    animDuration = 3000,
+    showSFGhost = false,
+    compact = false,
+    onComplete = () => {}
+  } = options;
+
+  const city = CITIES[cityName];
+  const rentData = city.rent;
+  const permitData = city.permits;
+
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  // Dimensions
+  const fullWidth = container.clientWidth || 900;
+  const margin = { top: 20, right: 70, bottom: 45, left: 70 };
+  const width = fullWidth - margin.left - margin.right;
+  const height = (compact ? 300 : 420) - margin.top - margin.bottom;
+
+  const svg = d3.select(`#${containerId}`)
+    .append('svg')
+    .attr('viewBox', `0 0 ${fullWidth} ${height + margin.top + margin.bottom}`)
+    .attr('preserveAspectRatio', 'xMidYMid meet');
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Scales
+  const x = d3.scaleBand()
+    .domain(rentData.map(d => d.year))
+    .range([0, width])
+    .padding(0.3);
+
+  const maxRent = showSFGhost
+    ? Math.max(d3.max(rentData, d => d.value), d3.max(CITIES["San Francisco"].rent, d => d.value))
+    : d3.max(rentData, d => d.value);
+
+  // Scale permits axis: try to align first data points, but ensure all bars fit
+  const alignedPermits = permitData[0].value * maxRent / rentData[0].value;
+  const maxPermits = Math.max(d3.max(permitData, d => d.value), alignedPermits);
+
+  const yPermits = d3.scaleLinear()
+    .domain([0, maxPermits * 1.15])
+    .range([height, 0]);
+
+  const yRent = d3.scaleLinear()
+    .domain([0, maxRent * 1.15])
+    .range([height, 0]);
+
+  // Grid lines
+  const gridLines = yRent.ticks(5);
+  g.selectAll('.grid-line')
+    .data(gridLines)
+    .join('line')
+    .attr('class', 'grid-line')
+    .attr('x1', 0).attr('x2', width)
+    .attr('y1', d => yRent(d)).attr('y2', d => yRent(d))
+    .attr('stroke', 'var(--border)')
+    .attr('stroke-dasharray', '3,3')
+    .attr('opacity', 0.5);
+
+  // X axis
+  g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickValues(rentData.map(d => d.year).filter((_, i) => i % 2 === 0)))
+    .call(g => g.select('.domain').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick line').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick text')
+      .attr('fill', 'var(--text-muted)')
+      .attr('font-family', 'Space Mono, monospace')
+      .attr('font-size', '11px'));
+
+  // Y axis left (permits)
+  g.append('g')
+    .call(d3.axisLeft(yPermits).ticks(5).tickFormat(d => d >= 1000 ? `${(d/1000).toFixed(0)}k` : d))
+    .call(g => g.select('.domain').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick line').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick text')
+      .attr('fill', 'var(--permit-color)')
+      .attr('font-family', 'Space Mono, monospace')
+      .attr('font-size', '11px'));
+
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('y', -55)
+    .attr('x', -height / 2)
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'var(--permit-color)')
+    .attr('font-size', '11px')
+    .attr('font-family', 'Space Grotesk, sans-serif')
+    .text('New Housing Units');
+
+  // Y axis right (rent)
+  g.append('g')
+    .attr('transform', `translate(${width},0)`)
+    .call(d3.axisRight(yRent).ticks(5).tickFormat(d => `$${d >= 1000 ? `${(d/1000).toFixed(1)}k` : d}`))
+    .call(g => g.select('.domain').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick line').attr('stroke', 'var(--border)'))
+    .call(g => g.selectAll('.tick text')
+      .attr('fill', 'var(--rent-color)')
+      .attr('font-family', 'Space Mono, monospace')
+      .attr('font-size', '11px'));
+
+  g.append('text')
+    .attr('transform', 'rotate(90)')
+    .attr('y', -width - 55)
+    .attr('x', height / 2)
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'var(--rent-color)')
+    .attr('font-size', '11px')
+    .attr('font-family', 'Space Grotesk, sans-serif')
+    .text('Rent ($/mo)');
+
+  // ---- SF ghost line for comparison charts ----
+  if (showSFGhost) {
+    const sfRent = CITIES["San Francisco"].rent;
+    const sfLine = d3.line()
+      .x(d => x(d.year) + x.bandwidth() / 2)
+      .y(d => yRent(d.value))
+      .curve(d3.curveMonotoneX);
+
+    g.append('path')
+      .datum(sfRent)
+      .attr('fill', 'none')
+      .attr('stroke', '#ff6b6b')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '6,4')
+      .attr('opacity', 0.35)
+      .attr('d', sfLine);
+
+    g.append('text')
+      .attr('x', x(sfRent[sfRent.length - 1].year) + x.bandwidth() / 2 + 5)
+      .attr('y', yRent(sfRent[sfRent.length - 1].value) - 6)
+      .attr('fill', '#ff6b6b')
+      .attr('opacity', 0.5)
+      .attr('font-size', '9px')
+      .attr('font-family', 'Space Mono, monospace')
+      .text('SF');
+  }
+
+  // ---- BUILDING BARS (house shapes) ----
+  const barGroup = g.append('g').attr('class', 'bars');
+
+  function drawBuildingBar(group, d, barX, barW, barH, barY, color) {
+    const roofH = Math.min(barW * 0.4, 12);
+
+    // Main building body
+    group.append('rect')
+      .attr('x', barX)
+      .attr('y', barY)
+      .attr('width', barW)
+      .attr('height', barH)
+      .attr('rx', 2)
+      .attr('fill', color)
+      .attr('opacity', 0.7);
+
+    // Roof triangle
+    group.append('polygon')
+      .attr('points', `
+        ${barX},${barY}
+        ${barX + barW / 2},${barY - roofH}
+        ${barX + barW},${barY}
+      `)
+      .attr('fill', color)
+      .attr('opacity', 0.9);
+
+    // Windows (little squares)
+    const winSize = Math.min(barW * 0.2, 4);
+    const winGap = winSize * 1.8;
+    const cols = Math.max(1, Math.floor((barW - 4) / winGap));
+    const rows = Math.max(1, Math.min(6, Math.floor((barH - 6) / winGap)));
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const wx = barX + (barW - cols * winGap + winGap - winSize) / 2 + c * winGap;
+        const wy = barY + 4 + r * winGap;
+        if (wy + winSize < barY + barH - 2) {
+          group.append('rect')
+            .attr('x', wx)
+            .attr('y', wy)
+            .attr('width', winSize)
+            .attr('height', winSize)
+            .attr('rx', 0.5)
+            .attr('fill', '#0f1117')
+            .attr('opacity', 0.4);
+        }
+      }
+    }
+  }
+
+  // ---- RENT LINE ----
+  const line = d3.line()
+    .x(d => x(d.year) + x.bandwidth() / 2)
+    .y(d => yRent(d.value))
+    .curve(d3.curveMonotoneX);
+
+  const rentPath = g.append('path')
+    .datum(rentData)
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--rent-color)')
+    .attr('stroke-width', 3)
+    .attr('stroke-linecap', 'round')
+    .attr('filter', 'drop-shadow(0 0 6px var(--rent-glow))')
+    .attr('d', line);
+
+  // Rent dots
+  const rentDots = g.selectAll('.rent-dot')
+    .data(rentData)
+    .join('circle')
+    .attr('class', 'rent-dot')
+    .attr('cx', d => x(d.year) + x.bandwidth() / 2)
+    .attr('cy', d => yRent(d.value))
+    .attr('r', 3.5)
+    .attr('fill', 'var(--rent-color)')
+    .attr('stroke', 'var(--bg)')
+    .attr('stroke-width', 1.5)
+    .attr('opacity', 0);
+
+  // ---- TOOLTIP OVERLAY ----
+  const tooltip = document.getElementById('tooltip');
+
+  g.selectAll('.hover-rect')
+    .data(rentData)
+    .join('rect')
+    .attr('class', 'hover-rect')
+    .attr('x', d => x(d.year))
+    .attr('y', 0)
+    .attr('width', x.bandwidth())
+    .attr('height', height)
+    .attr('fill', 'transparent')
+    .on('mouseover', function(event, d) {
+      const permit = permitData.find(p => p.year === d.year);
+      tooltip.innerHTML = `
+        <div class="tt-year">${d.year}</div>
+        <div class="tt-rent">Rent: $${d.value.toLocaleString()}/mo</div>
+        <div class="tt-permits">Units: ${permit ? permit.value.toLocaleString() : 'N/A'}</div>
+      `;
+      tooltip.style.opacity = 1;
+    })
+    .on('mousemove', function(event) {
+      tooltip.style.left = (event.pageX + 12) + 'px';
+      tooltip.style.top = (event.pageY - 10) + 'px';
+    })
+    .on('mouseout', function() {
+      tooltip.style.opacity = 0;
+    });
+
+  // ---- ANIMATION ----
+  if (animate) {
+    // Hide everything initially
+    const totalLen = rentPath.node().getTotalLength();
+    rentPath
+      .attr('stroke-dasharray', totalLen)
+      .attr('stroke-dashoffset', totalLen);
+
+    // Animate bars one by one, then line draws on top
+    const barDelay = animDuration * 0.6 / permitData.length;
+
+    permitData.forEach((d, i) => {
+      const barX = x(d.year);
+      const barW = x.bandwidth();
+      const barH = height - yPermits(d.value);
+      const barY = yPermits(d.value);
+
+      const bGroup = barGroup.append('g')
+        .attr('class', 'building-bar')
+        .attr('opacity', 0);
+
+      drawBuildingBar(bGroup, d, barX, barW, barH, barY, 'var(--permit-color)');
+
+      bGroup.transition()
+        .delay(i * barDelay)
+        .duration(300)
+        .attr('opacity', 1);
+    });
+
+    // Animate rent line after bars start
+    rentPath.transition()
+      .delay(animDuration * 0.15)
+      .duration(animDuration * 0.7)
+      .ease(d3.easeLinear)
+      .attr('stroke-dashoffset', 0)
+      .on('end', () => {
+        // Show dots
+        rentDots.transition()
+          .duration(400)
+          .attr('opacity', 1);
+
+        // Pulse last dot
+        rentDots.filter((d, i) => i === rentData.length - 1)
+          .classed('rent-dot-pulse', true);
+
+        onComplete();
+      });
+
+  } else {
+    // No animation — draw everything immediately
+    permitData.forEach(d => {
+      const barX = x(d.year);
+      const barW = x.bandwidth();
+      const barH = height - yPermits(d.value);
+      const barY = yPermits(d.value);
+      const bGroup = barGroup.append('g').attr('class', 'building-bar');
+      drawBuildingBar(bGroup, d, barX, barW, barH, barY, 'var(--permit-color)');
+    });
+    rentDots.attr('opacity', 1);
+    onComplete();
+  }
+}
+
+
+// ============================================================
+// INITIALIZE SF CHART
+// ============================================================
+
+function animateSF() {
+  const btn = document.getElementById('sf-replay');
+  btn.disabled = true;
+  document.getElementById('sf-stats').classList.remove('visible');
+
+  createChart('sf-chart', 'San Francisco', {
+    animate: true,
+    animDuration: 3500,
+    onComplete: () => {
+      btn.disabled = false;
+
+      // Show stats
+      const sf = CITIES["San Francisco"];
+      const rentStart = sf.rent[0].value;
+      const rentEnd = sf.rent[sf.rent.length - 1].value;
+      const pctIncrease = ((rentEnd - rentStart) / rentStart * 100).toFixed(0);
+      const avgPermits = Math.round(sf.permits.reduce((s, d) => s + d.value, 0) / sf.permits.length);
+      const permitsPerCapita = (avgPermits / sf.population * 1000).toFixed(1);
+
+      document.getElementById('sf-rent-change').textContent = `+${pctIncrease}%`;
+      document.getElementById('sf-permit-avg').textContent = avgPermits.toLocaleString();
+      document.getElementById('sf-permit-per-capita').textContent = permitsPerCapita;
+      document.getElementById('sf-stats').classList.add('visible');
+    }
+  });
+}
+
+document.getElementById('sf-replay').addEventListener('click', animateSF);
+animateSF();
+
+
+// ============================================================
+// COMPARISON CITIES
+// ============================================================
+
+const comparisonCities = Object.keys(CITIES).filter(c => c !== 'San Francisco');
+
+const cityBtnsContainer = document.getElementById('city-buttons');
+comparisonCities.forEach(cityName => {
+  const btn = document.createElement('button');
+  btn.className = 'city-btn';
+  btn.textContent = cityName;
+  btn.addEventListener('click', () => toggleCity(cityName, btn));
+  cityBtnsContainer.appendChild(btn);
+});
+
+let activeCity = null;
+
+function toggleCity(cityName, btn) {
+  // Deselect current city if any
+  if (activeCity) {
+    const prevEl = document.getElementById(`comp-${activeCity.replace(/\s/g, '-')}`);
+    if (prevEl) prevEl.remove();
+    document.querySelectorAll('.city-btn.active').forEach(b => b.classList.remove('active'));
+    if (activeCity === cityName) {
+      activeCity = null;
+      return;
+    }
+  }
+
+  activeCity = cityName;
+  btn.classList.add('active');
+
+    const section = document.createElement('div');
+    section.className = 'chart-section';
+    section.id = `comp-${cityName.replace(/\s/g, '-')}`;
+
+    const city = CITIES[cityName];
+    const rentStart = city.rent[0].value;
+    const rentEnd = city.rent[city.rent.length - 1].value;
+    const pctIncrease = ((rentEnd - rentStart) / rentStart * 100).toFixed(0);
+    const avgPermits = Math.round(city.permits.reduce((s, d) => s + d.value, 0) / city.permits.length);
+    const permitsPerCapita = (avgPermits / city.population * 1000).toFixed(1);
+
+    section.innerHTML = `
+      <div class="chart-header">
+        <div class="chart-title"><span class="city-name" style="color: ${city.color}">${cityName}</span> — Rent vs. New Housing Built</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background: ${city.color}"></div> Net New Units Built (annual)</div>
+          <div class="legend-item"><div class="legend-swatch rent"></div> Rent</div>
+          <div class="legend-item" style="opacity:0.5"><div class="legend-swatch rent" style="opacity:0.35"></div> SF Rent (dashed)</div>
+        </div>
+      </div>
+      <div class="chart-container" id="comp-chart-${cityName.replace(/\s/g, '-')}"></div>
+      <div class="stat-callout visible">
+        <div class="stat-box">
+          <div class="stat-value" style="color: ${city.color}">+${pctIncrease}%</div>
+          <div class="stat-label">Rent increase 2004→2024</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" style="color: ${city.color}">${avgPermits.toLocaleString()}</div>
+          <div class="stat-label">Avg. units built/year</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" style="color: ${city.color}">${permitsPerCapita}</div>
+          <div class="stat-label">Units per 1k residents/yr</div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('comparison-charts').appendChild(section);
+
+    // Render after DOM insertion
+    setTimeout(() => {
+      createChart(`comp-chart-${cityName.replace(/\s/g, '-')}`, cityName, {
+        animate: true,
+        animDuration: 2500,
+        showSFGhost: true,
+        compact: true,
+      });
+    }, 50);
+}
+</script>
+
+</body>
+</html>
