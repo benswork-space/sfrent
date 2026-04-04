@@ -737,7 +737,8 @@ function createChart(containerId, cityName, options = {}) {
   const fullWidth = container.clientWidth || 900;
   const margin = { top: 20, right: 70, bottom: 45, left: 70 };
   const width = fullWidth - margin.left - margin.right;
-  const height = (compact ? 300 : 420) - margin.top - margin.bottom;
+  const isMobile = window.innerWidth < 600;
+  const height = (compact ? 300 : (isMobile ? 320 : 420)) - margin.top - margin.bottom;
 
   const svg = d3.select(`#${containerId}`)
     .append('svg')
@@ -784,7 +785,7 @@ function createChart(containerId, cityName, options = {}) {
   // X axis
   g.append('g')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(x).tickValues(rentData.map(d => d.year).filter((_, i) => i % 2 === 0)))
+    .call(d3.axisBottom(x).tickValues(rentData.map(d => d.year).filter((_, i, arr) => i === 0 || i === arr.length - 1)))
     .call(g => g.select('.domain').attr('stroke', 'var(--border)'))
     .call(g => g.selectAll('.tick line').attr('stroke', 'var(--border)'))
     .call(g => g.selectAll('.tick text')
