@@ -280,6 +280,13 @@
       letter-spacing: 0.05em;
     }
 
+    @media (max-width: 600px) {
+      .container { padding: 1.5rem 0.75rem; }
+      .stat-callout { gap: 0.75rem; flex-wrap: nowrap; }
+      .stat-box .stat-value { font-size: 1.3rem; }
+      .stat-box .stat-label { font-size: 0.6rem; }
+    }
+
     /* Building shapes */
     .building-bar { cursor: pointer; }
     .building-bar:hover { filter: brightness(1.2); }
@@ -738,7 +745,7 @@ function createChart(containerId, cityName, options = {}) {
   const margin = { top: 20, right: 70, bottom: 45, left: 70 };
   const width = fullWidth - margin.left - margin.right;
   const isMobile = window.innerWidth < 600;
-  const height = (compact ? 300 : (isMobile ? 320 : 420)) - margin.top - margin.bottom;
+  const height = (compact ? 300 : (isMobile ? 280 : 420)) - margin.top - margin.bottom;
 
   const svg = d3.select(`#${containerId}`)
     .append('svg')
